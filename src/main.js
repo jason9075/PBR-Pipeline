@@ -30,36 +30,35 @@ const mathModal    = document.getElementById('math-modal');
 const mathContent  = document.getElementById('math-content');
 
 /* ─── Texture path registry ───────────────────────────────────────────── */
+// import.meta.env.BASE_URL = '/' in dev, '/PBR-Pipeline/' on GitHub Pages
+const B = import.meta.env.BASE_URL;
 const TEX = {
   brick: {
-    albedo:      '/assets/brick/Bricks104_1K-PNG_Color.png',
-    normal:      '/assets/brick/Bricks104_1K-PNG_NormalGL.png',
-    roughness:   '/assets/brick/Bricks104_1K-PNG_Roughness.png',
-    ao:          '/assets/brick/Bricks104_1K-PNG_AmbientOcclusion.png',
-    metalness:   null,
-    displacement:'/assets/brick/Bricks104_1K-PNG_Displacement.png',
+    albedo:    `${B}assets/brick/Bricks104_1K-PNG_Color.png`,
+    normal:    `${B}assets/brick/Bricks104_1K-PNG_NormalGL.png`,
+    roughness: `${B}assets/brick/Bricks104_1K-PNG_Roughness.png`,
+    ao:        `${B}assets/brick/Bricks104_1K-PNG_AmbientOcclusion.png`,
+    metalness: null,
   },
   metal: {
-    albedo:      '/assets/metal/Metal055A_1K-PNG_Color.png',
-    normal:      '/assets/metal/Metal055A_1K-PNG_NormalGL.png',
-    roughness:   '/assets/metal/Metal055A_1K-PNG_Roughness.png',
-    ao:          null,
-    metalness:   '/assets/metal/Metal055A_1K-PNG_Metalness.png',
-    displacement:'/assets/metal/Metal055A_1K-PNG_Displacement.png',
+    albedo:    `${B}assets/metal/Metal055A_1K-PNG_Color.png`,
+    normal:    `${B}assets/metal/Metal055A_1K-PNG_NormalGL.png`,
+    roughness: `${B}assets/metal/Metal055A_1K-PNG_Roughness.png`,
+    ao:        null,
+    metalness: `${B}assets/metal/Metal055A_1K-PNG_Metalness.png`,
   },
   rock: {
-    albedo:      '/assets/rock/Rock064_1K-PNG_Color.png',
-    normal:      '/assets/rock/Rock064_1K-PNG_NormalGL.png',
-    roughness:   '/assets/rock/Rock064_1K-PNG_Roughness.png',
-    ao:          '/assets/rock/Rock064_1K-PNG_AmbientOcclusion.png',
-    metalness:   null,
-    displacement:'/assets/rock/Rock064_1K-PNG_Displacement.png',
+    albedo:    `${B}assets/rock/Rock064_1K-PNG_Color.png`,
+    normal:    `${B}assets/rock/Rock064_1K-PNG_NormalGL.png`,
+    roughness: `${B}assets/rock/Rock064_1K-PNG_Roughness.png`,
+    ao:        `${B}assets/rock/Rock064_1K-PNG_AmbientOcclusion.png`,
+    metalness: null,
   },
 };
 
 const MAT_NAMES   = ['brick', 'metal', 'rock'];
 const MAT_LABELS  = { brick: 'Brick Wall', metal: 'Metal Plate', rock: 'Rock Surface' };
-const CHANNELS    = ['albedo', 'normal', 'roughness', 'metalness', 'ao', 'displacement'];
+const CHANNELS    = ['albedo', 'normal', 'roughness', 'metalness', 'ao'];
 
 /* ─── App state ───────────────────────────────────────────────────────── */
 const state = {
@@ -68,9 +67,9 @@ const state = {
   environment:     'studio',
   isolatedChannel: null,
   channels: {
-    brick: { albedo:true, normal:true, roughness:true, metalness:false, ao:true, displacement:false },
-    metal: { albedo:true, normal:true, roughness:true, metalness:true,  ao:false, displacement:false },
-    rock:  { albedo:true, normal:true, roughness:true, metalness:false, ao:true, displacement:false },
+    brick: { albedo:true, normal:true, roughness:true, metalness:false, ao:true },
+    metal: { albedo:true, normal:true, roughness:true, metalness:true,  ao:false },
+    rock:  { albedo:true, normal:true, roughness:true, metalness:false, ao:true },
   },
 };
 
@@ -129,8 +128,8 @@ function applyEnv(name) {
     ambLight.intensity = 0.4;
   }
   MAT_NAMES.forEach(n => {
-    const m = meshes[n]?.material;
-    if (m?.isMeshStandardMaterial) m.envMapIntensity = name === 'none' ? 0 : 1.0;
+    materials[n].envMapIntensity =
+      (name !== 'none' && state.shaderMode === 'render') ? 1.0 : 0;
   });
 }
 
@@ -183,11 +182,20 @@ function buildMat(matName) {
     mat.aoMapIntensity = 1.0;
   }
 
-  if (ch.displacement && defs.displacement) {
-    mat.displacementMap   = getTex(defs.displacement);
-    mat.displacementScale = 0.08;
-  }
+  return mat;
+}
 
+// Albedo-only MeshStandardMaterial — shows form under direct light, no PBR effects
+function buildSolidMat(matName) {
+  const defs = TEX[matName];
+  const ch   = state.channels[matName];
+  const mat  = new THREE.MeshStandardMaterial({
+    side: THREE.FrontSide,
+    envMapIntensity: 0,
+    roughness: 1.0,
+    metalness: 0.0,
+  });
+  if (ch.albedo && defs.albedo) mat.map = getTex(defs.albedo, true);
   return mat;
 }
 
@@ -199,19 +207,28 @@ function isolateMat(matName, channel) {
 }
 
 /* ─── Scene meshes ────────────────────────────────────────────────────── */
-const meshes     = {};
-const wfMeshes   = {};
-const materials  = {};
+const meshes        = {};
+const wfMeshes      = {};
+const materials     = {};   // full PBR (render mode)
+const solidMats     = {};   // albedo-only diffuse (solid mode)
 
-const POSITIONS = [[-2.6, 0, 0], [0, 0, 0], [2.6, 0, 0]];
+// Flat dark fill shown under wireframe lines — shared across all three meshes
+const WIRE_FILL = new THREE.MeshBasicMaterial({ color: 0x2E3440, side: THREE.FrontSide });
+
+// Shared black back-face cap — visible when a plane is rotated >90°
+const BLACK_BACK = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
+
+const PLANE_W   = 2.0;
+const PLANE_H   = 2.6;
+const POSITIONS = [[-2.8, 0, 0], [0, 0, 0], [2.8, 0, 0]];
 const ROTATIONS  = [0.22, 0, -0.22];
 
 MAT_NAMES.forEach((name, i) => {
-  const geo = new THREE.PlaneGeometry(2.0, 2.6, 64, 64);
-  // Copy UV to second channel for aoMap
+  const geo = new THREE.PlaneGeometry(PLANE_W, PLANE_H);
   geo.setAttribute('uv2', geo.attributes.uv.clone());
 
   materials[name] = buildMat(name);
+  solidMats[name] = buildSolidMat(name);
   const mesh = new THREE.Mesh(geo, materials[name]);
   mesh.position.set(...POSITIONS[i]);
   mesh.rotation.y    = ROTATIONS[i];
@@ -221,10 +238,18 @@ MAT_NAMES.forEach((name, i) => {
   scene.add(mesh);
   meshes[name] = mesh;
 
-  // Wireframe overlay (hidden by default)
+  const back = new THREE.Mesh(geo, BLACK_BACK);
+  back.position.copy(mesh.position);
+  back.rotation.copy(mesh.rotation);
+  scene.add(back);
+
   const wfGeo = new THREE.WireframeGeometry(geo);
-  const wfMat = new THREE.LineBasicMaterial({ color: 0x88C0D0, transparent: true, opacity: 0.25 });
-  const wf    = new THREE.LineSegments(wfGeo, wfMat);
+  const wfMat = new THREE.LineBasicMaterial({
+    color: 0x88C0D0, transparent: true, opacity: 0.75,
+    depthTest: false, depthWrite: false,
+  });
+  const wf = new THREE.LineSegments(wfGeo, wfMat);
+  wf.renderOrder = 1;
   wf.position.copy(mesh.position);
   wf.rotation.copy(mesh.rotation);
   wf.visible = false;
@@ -276,29 +301,45 @@ canvas.addEventListener('pointerup', e => {
 });
 
 /* ─── Core update helpers ─────────────────────────────────────────────── */
+
+// Single source of truth: assign the correct material to a mesh given current state
+function syncMeshMaterial(name) {
+  // Isolation overrides everything on the selected mesh
+  if (state.isolatedChannel !== null && name === state.selectedMat) return;
+  if (state.shaderMode === 'wireframe') {
+    meshes[name].material = WIRE_FILL;
+  } else if (state.shaderMode === 'solid') {
+    meshes[name].material = solidMats[name];
+  } else {
+    meshes[name].material = materials[name];
+  }
+}
+
+// Always set emissive on the PBR material so highlight persists across mode switches
 function setHighlight(activeName) {
   MAT_NAMES.forEach(n => {
-    const m = meshes[n]?.material;
+    const m = materials[n];
     if (m?.isMeshStandardMaterial) m.emissive.setHex(n === activeName ? 0x0d1520 : 0x000000);
   });
 }
 
 function rebuildMaterial(matName) {
   materials[matName]?.dispose();
-  materials[matName]    = buildMat(matName);
-  meshes[matName].material = materials[matName];
-  const envOff = state.environment === 'none' || state.shaderMode === 'solid';
-  materials[matName].envMapIntensity = envOff ? 0 : 1.0;
+  solidMats[matName]?.dispose();
+  materials[matName] = buildMat(matName);
+  solidMats[matName] = buildSolidMat(matName);
+  materials[matName].envMapIntensity =
+    (state.shaderMode === 'render' && state.environment !== 'none') ? 1.0 : 0;
+  syncMeshMaterial(matName);
   setHighlight(state.selectedMat);
 }
 
 function applyShaderMode(mode) {
   MAT_NAMES.forEach(name => {
     wfMeshes[name].visible = mode === 'wireframe';
-    const m = meshes[name].material;
-    if (m?.isMeshStandardMaterial) {
-      m.envMapIntensity = (mode === 'solid' || state.environment === 'none') ? 0 : 1.0;
-    }
+    materials[name].envMapIntensity =
+      (mode === 'render' && state.environment !== 'none') ? 1.0 : 0;
+    syncMeshMaterial(name);
   });
 }
 
@@ -391,7 +432,7 @@ isolateBtns.forEach(btn => {
       state.isolatedChannel = null;
       isolateBtns.forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tex-thumb').forEach(t => t.classList.remove('active'));
-      rebuildMaterial(state.selectedMat);
+      syncMeshMaterial(state.selectedMat);
     } else {
       state.isolatedChannel = ch;
       isolateBtns.forEach(b => b.classList.remove('active'));
