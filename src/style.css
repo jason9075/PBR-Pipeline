@@ -19,6 +19,11 @@ body{display:grid;grid-template-rows:48px 1fr;height:100vh}
   padding:.3rem .75rem;cursor:pointer;font:inherit;font-size:.78rem;transition:background .12s}
 .mode-btn:hover{background:var(--n3)}
 .mode-btn.active{background:var(--n10);color:var(--n6);border-color:var(--n9)}
+#focus-group{display:flex;align-items:center;gap:.35rem}
+.focus-label{font-size:.75rem;color:var(--n4);white-space:nowrap}
+#focus-select{border:1px solid var(--n3);border-radius:4px;background:var(--n2);color:var(--n4);
+  padding:.3rem .5rem;font:inherit;font-size:.78rem;cursor:pointer;outline:none}
+#focus-select:hover{background:var(--n3)}
 .icon-button{border:1px solid var(--n3);border-radius:50%;background:var(--n2);color:var(--n4);
   width:32px;height:32px;cursor:pointer;font-size:1.05rem;
   display:flex;align-items:center;justify-content:center;transition:background .12s}

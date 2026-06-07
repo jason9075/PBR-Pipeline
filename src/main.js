@@ -18,6 +18,7 @@ const envBtns      = document.querySelectorAll('.env-btn');
 const matItems     = document.querySelectorAll('.mat-item');
 const azimuthEl    = document.getElementById('azimuth');
 const intensityEl  = document.getElementById('intensity');
+const intensityVal = document.getElementById('intensity-val');
 const dispScaleEl  = document.getElementById('disp-scale');
 const dispScaleVal = document.getElementById('disp-scale-val');
 const channelRows  = document.querySelectorAll('.channel-row');
@@ -25,6 +26,7 @@ const isolateBtns  = document.querySelectorAll('.isolate-btn');
 const statFpsEl    = document.getElementById('stat-fps');
 const statDrawsEl  = document.getElementById('stat-draws');
 const statTrisEl   = document.getElementById('stat-tris');
+const focusSelect  = document.getElementById('focus-select');
 const openMathBtn  = document.getElementById('open-math');
 const closeMathBtn = document.getElementById('close-math');
 const langToggle   = document.getElementById('language-toggle');
@@ -132,19 +134,12 @@ function buildEnv(name) {
 }
 
 function applyEnv(name) {
-  if (name === 'none') {
-    scene.environment = null;
-    scene.background  = new THREE.Color(0x2E3440);
-    ambLight.intensity = 0.8;
-  } else {
-    const env = buildEnv(name);
-    scene.environment = env;
-    scene.background  = name === 'outdoor' ? env : new THREE.Color(0x3B4252);
-    ambLight.intensity = 0.4;
-  }
+  const env = buildEnv(name);
+  scene.environment = env;
+  scene.background  = name === 'outdoor' ? env : new THREE.Color(0x3B4252);
+  ambLight.intensity = 0.4;
   MAT_NAMES.forEach(n => {
-    materials[n].envMapIntensity =
-      (name !== 'none' && state.shaderMode !== 'wireframe') ? 1.0 : 0;
+    materials[n].envMapIntensity = state.shaderMode !== 'wireframe' ? 1.0 : 0;
   });
 }
 
@@ -389,6 +384,23 @@ controls.minDistance   = 2;
 controls.maxDistance   = 20;
 controls.target.set(0, 0, 0);
 
+/* ─── Camera focus animation ──────────────────────────────────────────── */
+const FOCUS_OVERVIEW = { pos: new THREE.Vector3(0, 0, 9), target: new THREE.Vector3(0, 0, 0) };
+
+const camAnim = { active: false, t: 0,
+  from: { pos: new THREE.Vector3(), target: new THREE.Vector3() },
+  to:   { pos: new THREE.Vector3(), target: new THREE.Vector3() },
+};
+
+function focusCamera(toPos, toTarget) {
+  camAnim.from.pos.copy(camera.position);
+  camAnim.from.target.copy(controls.target);
+  camAnim.to.pos.copy(toPos);
+  camAnim.to.target.copy(toTarget);
+  camAnim.t      = 0;
+  camAnim.active = true;
+}
+
 /* ─── Raycaster ───────────────────────────────────────────────────────── */
 const raycaster = new THREE.Raycaster();
 const pointer   = new THREE.Vector2();
@@ -458,7 +470,7 @@ function rebuildMaterial(matName) {
   materials[matName] = buildMat(matName);
   solidMats[matName] = buildSolidMat(matName);
   materials[matName].envMapIntensity =
-    (state.shaderMode !== 'wireframe' && state.environment !== 'none') ? 1.0 : 0;
+    state.shaderMode !== 'wireframe' ? 1.0 : 0;
   syncMeshMaterial(matName);
   syncWireframeGeo(matName);
   setHighlight(state.selectedMat);
@@ -469,7 +481,7 @@ function applyShaderMode(mode) {
     // wireframe lines visible in both wireframe-only and mix modes
     wfMeshes[name].visible = mode === 'wireframe' || mode === 'mix';
     materials[name].envMapIntensity =
-      (mode !== 'wireframe' && state.environment !== 'none') ? 1.0 : 0;
+      mode !== 'wireframe' ? 1.0 : 0;
     syncMeshMaterial(name);
   });
 }
@@ -584,17 +596,36 @@ document.querySelectorAll('.tex-thumb').forEach(thumb => {
   });
 });
 
-// Light azimuth
-azimuthEl.addEventListener('input', () => {
+// Focus
+focusSelect.addEventListener('change', () => {
+  const val = focusSelect.value;
+  if (val === 'overview') {
+    focusCamera(FOCUS_OVERVIEW.pos, FOCUS_OVERVIEW.target);
+  } else {
+    const idx = MAT_NAMES.indexOf(val);
+    if (idx === -1) return;
+    const x = POSITIONS[idx][0];
+    focusCamera(
+      new THREE.Vector3(x, 0, 5),
+      new THREE.Vector3(x, 0, 0),
+    );
+  }
+});
+
+function updateLightPosition() {
   const rad = (parseFloat(azimuthEl.value) * Math.PI) / 180;
   dirLight.position.x = Math.cos(rad) * 6;
   dirLight.position.z = Math.sin(rad) * 6;
   syncLightIndicator();
-});
+}
+
+// Light azimuth
+azimuthEl.addEventListener('input', updateLightPosition);
 
 // Light intensity
 intensityEl.addEventListener('input', () => {
   dirLight.intensity = parseFloat(intensityEl.value);
+  intensityVal.textContent = parseFloat(intensityEl.value).toFixed(1);
 });
 
 // Displacement scale — update all materials and wireframe shaders live
@@ -623,6 +654,15 @@ let lastSecond = performance.now();
 
 function animate() {
   requestAnimationFrame(animate);
+
+  if (camAnim.active) {
+    camAnim.t = Math.min(1, camAnim.t + 0.04);
+    const ease = 1 - Math.pow(1 - camAnim.t, 3); // cubic ease-out
+    camera.position.lerpVectors(camAnim.from.pos,    camAnim.to.pos,    ease);
+    controls.target.lerpVectors(camAnim.from.target, camAnim.to.target, ease);
+    if (camAnim.t >= 1) camAnim.active = false;
+  }
+
   controls.update();
   renderer.render(scene, camera);
 
@@ -717,4 +757,4 @@ applyEnv('studio');
 selectMaterial('brick');
 applyShaderMode('render');
 MAT_NAMES.forEach(syncWireframeGeo);
-syncLightIndicator();
+updateLightPosition();
