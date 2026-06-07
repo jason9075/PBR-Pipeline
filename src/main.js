@@ -71,9 +71,7 @@ const TEX = {
   },
 };
 
-const MAT_NAMES   = ['brick', 'metal', 'rock', 'rusty_metal'];
-const MAT_LABELS  = { brick: 'Brick Wall', metal: 'Metal Plate', rock: 'Rock Surface', rusty_metal: 'Rusty Metal' };
-const CHANNELS    = ['albedo', 'normal', 'roughness', 'metalness', 'ao', 'displacement'];
+const MAT_NAMES = ['brick', 'metal', 'rock', 'rusty_metal'];
 
 /* ─── App state ───────────────────────────────────────────────────────── */
 const state = {
@@ -202,20 +200,6 @@ function buildMat(matName) {
   return mat;
 }
 
-// Albedo-only MeshStandardMaterial — shows form under direct light, no PBR effects
-function buildSolidMat(matName) {
-  const defs = TEX[matName];
-  const ch   = state.channels[matName];
-  const mat  = new THREE.MeshStandardMaterial({
-    side: THREE.FrontSide,
-    envMapIntensity: 0,
-    roughness: 1.0,
-    metalness: 0.0,
-  });
-  if (ch.albedo && defs.albedo) mat.map = getTex(defs.albedo, true);
-  return mat;
-}
-
 // Build a wireframe BufferGeometry that preserves UV from the source geometry.
 // WireframeGeometry strips UVs, so we reconstruct edges manually to keep them.
 function buildWireframeWithUV(srcGeo) {
@@ -289,7 +273,6 @@ function isolateMat(matName, channel) {
 const meshes        = {};
 const wfMeshes      = {};
 const materials     = {};   // full PBR (render mode)
-const solidMats     = {};   // albedo-only diffuse (solid mode)
 
 // Flat dark fill shown under wireframe lines — shared across all three meshes
 const WIRE_FILL = new THREE.MeshBasicMaterial({ color: 0x2E3440, side: THREE.FrontSide });
@@ -308,7 +291,6 @@ MAT_NAMES.forEach((name, i) => {
   geo.setAttribute('uv2', geo.attributes.uv.clone());
 
   materials[name] = buildMat(name);
-  solidMats[name] = buildSolidMat(name);
   const mesh = new THREE.Mesh(geo, materials[name]);
   mesh.position.set(...POSITIONS[i]);
   mesh.rotation.y    = ROTATIONS[i];
@@ -466,9 +448,7 @@ function setHighlight(activeName) {
 
 function rebuildMaterial(matName) {
   materials[matName]?.dispose();
-  solidMats[matName]?.dispose();
   materials[matName] = buildMat(matName);
-  solidMats[matName] = buildSolidMat(matName);
   materials[matName].envMapIntensity =
     state.shaderMode !== 'wireframe' ? 1.0 : 0;
   syncMeshMaterial(matName);

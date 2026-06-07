@@ -1,8 +1,8 @@
 :root {
   --n0:#2E3440;--n1:#3B4252;--n2:#434C5E;--n3:#4C566A;
   --n4:#D8DEE9;--n5:#E5E9F0;--n6:#ECEFF4;
-  --n7:#8FBCBB;--n8:#88C0D0;--n9:#81A1C1;--n10:#5E81AC;
-  --n11:#BF616A;--n13:#EBCB8B;--n14:#A3BE8C;
+  --n8:#88C0D0;--n9:#81A1C1;--n10:#5E81AC;
+  --n13:#EBCB8B;
 }
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;overflow:hidden;background:var(--n0);color:var(--n4);
