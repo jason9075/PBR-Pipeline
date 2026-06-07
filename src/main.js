@@ -59,10 +59,18 @@ const TEX = {
     metalness:    null,
     displacement: `${B}assets/rock/Rock064_1K-PNG_Displacement.png`,
   },
+  rusty_metal: {
+    albedo:       `${B}assets/rusty_metal/Metal055C_1K-PNG_Color.png`,
+    normal:       `${B}assets/rusty_metal/Metal055C_1K-PNG_NormalGL.png`,
+    roughness:    `${B}assets/rusty_metal/Metal055C_1K-PNG_Roughness.png`,
+    ao:           null,
+    metalness:    `${B}assets/rusty_metal/Metal055C_1K-PNG_Metalness.png`,
+    displacement: `${B}assets/rusty_metal/Metal055C_1K-PNG_Displacement.png`,
+  },
 };
 
-const MAT_NAMES   = ['brick', 'metal', 'rock'];
-const MAT_LABELS  = { brick: 'Brick Wall', metal: 'Metal Plate', rock: 'Rock Surface' };
+const MAT_NAMES   = ['brick', 'metal', 'rock', 'rusty_metal'];
+const MAT_LABELS  = { brick: 'Brick Wall', metal: 'Metal Plate', rock: 'Rock Surface', rusty_metal: 'Rusty Metal' };
 const CHANNELS    = ['albedo', 'normal', 'roughness', 'metalness', 'ao', 'displacement'];
 
 /* ─── App state ───────────────────────────────────────────────────────── */
@@ -73,9 +81,10 @@ const state = {
   environment:     'studio',
   isolatedChannel: null,
   channels: {
-    brick: { albedo:true, normal:true, roughness:true, metalness:false, ao:true, displacement:true },
-    metal: { albedo:true, normal:true, roughness:true, metalness:true,  ao:false, displacement:true },
-    rock:  { albedo:true, normal:true, roughness:true, metalness:false, ao:true, displacement:true },
+    brick:       { albedo:true, normal:true, roughness:true, metalness:false, ao:true,  displacement:true },
+    metal:       { albedo:true, normal:true, roughness:true, metalness:true,  ao:false, displacement:true },
+    rock:        { albedo:true, normal:true, roughness:true, metalness:false, ao:true,  displacement:true },
+    rusty_metal: { albedo:true, normal:true, roughness:true, metalness:true,  ao:false, displacement:true },
   },
 };
 
@@ -295,8 +304,8 @@ const BLACK_BACK = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.Ba
 
 const PLANE_W   = 2.0;
 const PLANE_H   = 2.6;
-const POSITIONS = [[-2.8, 0, 0], [0, 0, 0], [2.8, 0, 0]];
-const ROTATIONS  = [0.22, 0, -0.22];
+const POSITIONS = [[-4.2, 0, 0], [-1.4, 0, 0], [1.4, 0, 0], [4.2, 0, 0]];
+const ROTATIONS  = [0.3, 0.1, -0.1, -0.3];
 
 MAT_NAMES.forEach((name, i) => {
   // 128×128 segments needed for displacementMap to look smooth
