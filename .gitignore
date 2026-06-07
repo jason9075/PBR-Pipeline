@@ -1,0 +1,26 @@
+# Nix
+result
+result-*
+.direnv/
+
+# Node
+node_modules/
+dist/
+
+# Vite public symlink (recreated by just install)
+public/assets
+
+# Neovim
+*.swp
+*.swo
+.netrwhist
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Agents
+.codex
+
+# Zip source files (keep extracted PNGs)
+assets/rock/Rock064_1K-PNG.zip
