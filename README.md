@@ -1,5 +1,7 @@
 # PBR Pipeline Visualizer
 
+**Live Demo:** https://jason9075.github.io/PBR-Pipeline/
+
 An interactive, browser-based tool for exploring the **Physically Based Rendering (PBR)** texture pipeline. Inspect how each texture channel (Albedo, Normal, Roughness, Metalness, AO, Displacement) contributes to the final shaded result — in real time, with live controls.
 
 ## Features
@@ -67,6 +69,10 @@ PBR-Pipeline/
 ├── Justfile         # Task automation
 └── vite.config.js   # Vite configuration
 ```
+
+## Credits
+
+PBR textures from [ambientCG](https://ambientcg.com/), licensed under [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/).
 
 ## License
 
