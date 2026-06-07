@@ -6,12 +6,14 @@ An interactive, browser-based tool for exploring the **Physically Based Renderin
 
 ## Features
 
-- **Three render modes** — Wireframe, Solid, and full PBR Render
-- **Three PBR materials** — Brick Wall, Metal Plate, Rock Surface
+- **Three render modes** — Wireframe, Render, and Mix (wireframe overlay on full PBR)
+- **Four PBR materials** — Brick Wall, Metal Plate, Rock Surface, Rusty Metal
 - **Per-channel toggle & isolate** — enable/disable or solo any texture channel to see its isolated effect
-- **Texture preview strip** — thumbnail view of all six maps for the active material
-- **Live scene controls** — adjust light azimuth, intensity, and environment (None / Studio / Outdoor)
-- **Math modal** — inline explanation of the PBR reflectance equation with KaTeX-rendered formulas, togglable between English and Chinese
+- **Displacement map** with adjustable scale slider; wireframe mode accurately traces the displaced surface using a custom ShaderMaterial
+- **Texture preview strip** — thumbnail view of all maps for the active material
+- **Camera focus** — animate to Overview or any individual material with cubic ease-out
+- **Live scene controls** — light azimuth (with 3D position indicator), intensity, environment (None / Studio / Outdoor), displacement scale
+- **Math modal** — inline Cook-Torrance BRDF equations rendered with KaTeX + GLSL code, togglable between English and Traditional Chinese
 - **Performance overlay** — real-time FPS, draw call count, and triangle count
 
 ## Tech Stack
@@ -50,25 +52,41 @@ Then open `http://localhost:8080` in your browser.
 ## Available Commands
 
 ```sh
+just install   # npm install + create public/assets symlink
 just dev       # start Vite dev server (HMR, port 8080)
 just build     # production build → dist/
 just preview   # serve the production build locally
+just clean     # remove dist/ and node_modules/
 ```
 
 ## Project Structure
 
 ```
 PBR-Pipeline/
-├── assets/          # PBR texture maps (brick, metal, rock)
-├── public/          # Static assets served as-is
+├── assets/
+│   ├── brick/        # Brick Wall PBR maps
+│   ├── metal/        # Metal Plate PBR maps
+│   ├── rock/         # Rock Surface PBR maps
+│   └── rusty_metal/  # Rusty Metal PBR maps
+├── public/
+│   └── assets -> ../assets   # symlink (created by just install)
 ├── src/
-│   ├── main.js      # App entry point, Three.js scene setup
-│   └── style.css    # UI styles
-├── index.html       # Shell HTML with UI layout
-├── flake.nix        # Nix dev environment
-├── Justfile         # Task automation
-└── vite.config.js   # Vite configuration
+│   ├── main.js       # Three.js scene, materials, UI logic
+│   └── style.css     # Nord-themed UI styles
+├── index.html        # Shell HTML with UI layout
+├── flake.nix         # Nix dev environment (nodejs_22 + just)
+├── Justfile          # Task automation
+└── vite.config.js    # Vite configuration (base path for GitHub Pages)
 ```
+
+## Texture Channel Availability
+
+| Material | Albedo | Normal | Roughness | AO | Metalness | Displacement |
+|---|---|---|---|---|---|---|
+| Brick Wall | ✓ | ✓ | ✓ | ✓ | — | ✓ |
+| Metal Plate | ✓ | ✓ | ✓ | — | ✓ | ✓ |
+| Rock Surface | ✓ | ✓ | ✓ | ✓ | — | ✓ |
+| Rusty Metal | ✓ | ✓ | ✓ | — | ✓ | ✓ |
 
 ## Credits
 

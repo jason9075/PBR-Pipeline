@@ -1,0 +1,170 @@
+# PBR Pipeline 可視化 — Layout Guideline
+
+---
+
+## 整體版面結構
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Header Bar                                         │
+├───────────────┬─────────────────────────────────────┤
+│               │                                     │
+│  Left Panel   │         3D Viewport                 │
+│  (Controls)   │                                     │
+│               │                                     │
+│               │                                     │
+└───────────────┴─────────────────────────────────────┘
+```
+
+Left Panel 固定寬度約 280px，Viewport 佔剩餘全部空間。
+
+---
+
+## Header Bar
+
+```
+[ PBR Pipeline Visualizer ]   [ Wireframe ] [ Render ] [ Mix ]   [ Focus ▾ ]   [ 💡 ]
+```
+
+- 左側標題
+- 中間三個 shader mode 切換按鈕，互斥選擇：
+  - **Wireframe** — 暗色填充 + wireframe 線條（displacement ON 時線條跟隨凹凸形狀）
+  - **Render** — 完整 PBR + IBL
+  - **Mix** — 完整 PBR + wireframe 線條疊加
+- **Focus** — 下拉選單，切換相機視角（Overview / 各材質）；選擇後 cubic ease-out 動畫飛到目標位置
+- **💡** — 開啟數學原理 modal（KaTeX 公式 + GLSL 範例，支援 Eng/中 切換）
+
+---
+
+## Left Panel — 分四個區塊
+
+### 1. Scene Controls
+```
+─── Scene ───────────────────
+Light Direction
+  ← [  Azimuth slider  ] →
+
+Light Intensity
+  ○ [  slider  ] ●
+
+Environment
+  [ None ] [ Studio ] [ Outdoor ]
+
+Displacement Scale  0.08
+  ○ [  slider 0–0.3  ] ●
+```
+
+- Light Direction：控制 DirectionalLight 水平方位角，Viewport 中有黃色小球 + 淡線指示光源位置
+- Displacement Scale：即時調整所有材質的 displacementScale，同步更新 wireframe ShaderMaterial uniform
+
+### 2. Material Selection
+```
+─── Materials ───────────────
+  ● Brick Wall
+  ○ Metal Plate
+  ○ Rock Surface
+  ○ Rusty Metal
+```
+
+點選後 highlight 對應 mesh（emissive），panel 下方顯示該材質的貼圖 toggle。
+點擊 Viewport 中的 mesh 也可觸發相同選擇。
+
+### 3. Texture Channels Toggle
+```
+─── Channels ────────────────
+  [✓] Albedo
+  [✓] Normal Map
+  [✓] Roughness
+  [✓] Metalness
+  [✓] Ambient Occlusion
+  [✓] Displacement
+```
+
+每個 toggle 關掉時對應材質退回 fallback：
+
+| 操作 | Fallback |
+|---|---|
+| 關閉 Albedo | 純白（color = #ffffff） |
+| 關閉 Normal | flat geometry 法線 |
+| 關閉 Roughness | roughness = 0.5 |
+| 關閉 Metalness | metalness = 0（或 0.85 for metal-type） |
+| 關閉 AO | aoMap 移除，全亮 |
+| 關閉 Displacement | displacementScale = 0 |
+
+每個 toggle 旁有小色塊（isolate button），點擊可切換到單一 channel 的 MeshBasicMaterial 顯示。
+Wireframe mode 下，Displacement ON → 128×128 密集線（追蹤凹凸形狀），OFF → 1×1 單框線。
+
+### 4. Texture Preview Strip
+```
+─── Preview ─────────────────
+┌──────┐ ┌──────┐ ┌──────┐
+│ ALB  │ │ NRM  │ │ RGH  │
+└──────┘ └──────┘ └──────┘
+┌──────┐ ┌──────┐ ┌──────┐
+│  AO  │ │ MET  │ │ DISP │
+└──────┘ └──────┘ └──────┘
+```
+
+顯示目前選中材質的各張貼圖縮圖（`<img>`），點擊縮圖等同點擊對應的 isolate button。
+
+---
+
+## 3D Viewport
+
+### 場景配置
+
+四塊 Quad mesh 並排，略帶扇形角度（非完全正面）：
+
+```
+  [ Brick ]  [ Metal ]  [ Rock ]  [ Rusty Metal ]
+```
+
+- 各自是獨立的 PlaneGeometry(2.0, 2.6, **128, 128**)
+- 128×128 細分為 displacement map 提供足夠頂點
+- 每個 mesh 附有黑色 BackSide mesh，翻轉 180° 後可見黑色背面
+
+### Wireframe 幾何
+
+| Displacement | Wireframe geo | 說明 |
+|---|---|---|
+| ON | 128×128 + UV + normal，自訂 ShaderMaterial | 線條追蹤位移後的真實表面 |
+| OFF | 1×1 quad，LineBasicMaterial | 乾淨單框 |
+
+### 互動
+- **左鍵拖曳** — Orbit 旋轉視角（OrbitControls + damping）
+- **右鍵拖曳** — Pan 平移
+- **滾輪** — Zoom（2–20 units）
+- **點擊 mesh** — highlight mesh，同步更新 Left Panel 材質選擇
+- **Focus 下拉** — 相機飛到 Overview 或指定材質正面
+
+### 疊加資訊（右下角）
+```
+┌──────────────────┐
+│  FPS: 60         │
+│  Draw calls: 11  │
+│  Triangles: ...  │
+└──────────────────┘
+```
+
+每秒更新一次，Draw calls 因模式而異（Mix 模式多 wireframe LineSegments）。
+
+---
+
+## 資料夾對應
+
+```
+assets/
+├── brick/        → Brick Wall 材質
+├── metal/        → Metal Plate 材質
+├── rock/         → Rock Surface 材質
+└── rusty_metal/  → Rusty Metal 材質
+```
+
+Channel 可用性：
+
+| 材質 | Albedo | Normal | Roughness | AO | Metalness | Displacement |
+|---|---|---|---|---|---|---|
+| brick | ✓ | ✓ | ✓ | ✓ | — | ✓ |
+| metal | ✓ | ✓ | ✓ | — | ✓ | ✓ |
+| rock | ✓ | ✓ | ✓ | ✓ | — | ✓ |
+| rusty_metal | ✓ | ✓ | ✓ | — | ✓ | ✓ |
