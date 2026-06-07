@@ -662,15 +662,34 @@ animate();
 /* ─── Math modal ──────────────────────────────────────────────────────── */
 const MODAL_COPY = {
   en: `
-<p>PBR uses the <strong>Cook-Torrance BRDF</strong> to model specular reflection plus a Lambertian diffuse term:</p>
+<h3>Texture Pipeline</h3>
+
+<p><strong>Albedo</strong> stores the base diffuse colour $c_{\\text{diff}}$ of the surface, free of any lighting or shadow bake. For dielectrics it also seeds the specular base reflectance $F_0 \\approx 0.04$; for metals $F_0 = c_{\\text{diff}}$.</p>
+
+<p><strong>Normal Map</strong> encodes a per-texel tangent-space normal as an RGB triplet — $(0.5, 0.5, 1.0)$ means "flat". At shading time the stored vector replaces the interpolated geometry normal $\\mathbf{n}$, adding surface detail without extra polygons.</p>
+
+<p><strong>Roughness</strong> controls micro-surface irregularity. It maps to the GGX width parameter via $\\alpha = roughness^2$. A value of 0 gives mirror-sharp reflections; 1 gives fully diffuse scattering.</p>
+
+<p><strong>Metalness</strong> is a binary-like mask (0 = dielectric, 1 = conductor). It blends $F_0$ between the dielectric default $(0.04)$ and the albedo colour, and suppresses the diffuse term for metals:</p>
+<p>$$F_0 = \\text{mix}(0.04,\\; c_{\\text{diff}},\\; metalness)$$</p>
+
+<p><strong>Ambient Occlusion</strong> is a pre-baked grey-scale map approximating how much ambient indirect light reaches each texel. It multiplies the indirect lighting contribution — 0 = fully occluded, 1 = fully exposed.</p>
+
+<p><strong>Displacement</strong> offsets each vertex along its surface normal by the stored height value $h \\in [0,1]$, scaled by a user-controlled factor $s$:</p>
+<p>$$\\mathbf{p}' = \\mathbf{p} + \\mathbf{n} \\cdot h \\cdot s$$</p>
+<p>This produces real geometric relief visible in silhouettes and self-shadowing, but requires a highly-tessellated mesh (here 128 × 128 segments).</p>
+
+<h3>Cook-Torrance BRDF</h3>
+
+<p>The full reflectance equation combines a Lambertian diffuse term with the specular microfacet model:</p>
 <p>$$f_r = \\frac{c_{\\text{diff}}}{\\pi} + \\frac{D(\\mathbf{h})\\,G(\\mathbf{l},\\mathbf{v})\\,F(\\mathbf{v},\\mathbf{h})}{4\\,(\\mathbf{n}\\cdot\\mathbf{l})(\\mathbf{n}\\cdot\\mathbf{v})}$$</p>
-<p>The <strong>GGX Normal Distribution Function</strong> controls specular highlight sharpness from roughness $\\alpha$:</p>
+<p>The <strong>GGX Normal Distribution Function</strong> $D$ describes the statistical orientation of micro-facets for roughness $\\alpha$:</p>
 <p>$$D_{\\text{GGX}}(\\mathbf{h}) = \\frac{\\alpha^2}{\\pi\\bigl((\\mathbf{n}\\cdot\\mathbf{h})^2(\\alpha^2-1)+1\\bigr)^2}$$</p>
-<p>The <strong>Smith Geometry Function</strong> models micro-surface self-shadowing:</p>
+<p>The <strong>Smith Geometry Function</strong> $G$ accounts for micro-surface self-shadowing and masking:</p>
 <p>$$G_{\\text{Smith}}(\\mathbf{l},\\mathbf{v}) = G_{\\text{sub}}(\\mathbf{n}\\cdot\\mathbf{l},\\,\\alpha)\\cdot G_{\\text{sub}}(\\mathbf{n}\\cdot\\mathbf{v},\\,\\alpha)$$</p>
-<p>The <strong>Fresnel-Schlick</strong> approximation determines base reflectivity and grazing-angle response:</p>
+<p>The <strong>Fresnel-Schlick</strong> term $F$ determines how reflective the surface is, peaking at grazing angles:</p>
 <p>$$F_{\\text{Schlick}}(\\mathbf{v},\\mathbf{h}) = F_0 + (1-F_0)(1-\\mathbf{v}\\cdot\\mathbf{h})^5$$</p>
-<p>Core GLSL implementation of the specular term:</p>
+<p>Core GLSL implementation:</p>
 <pre><code class="language-glsl">float D_GGX(float NdotH, float alpha2) {
     float denom = NdotH * NdotH * (alpha2 - 1.0) + 1.0;
     return alpha2 / (PI * denom * denom);
@@ -687,15 +706,34 @@ vec3 F_Schlick(float HdotV, vec3 F0) {
 vec3 specular = (D * G * F) / max(4.0 * NdotL * NdotV, 0.001);</code></pre>
 `,
   zhTW: `
-<p>PBR 使用 <strong>Cook-Torrance BRDF</strong> 來模擬鏡面反射，加上 Lambertian 漫反射項：</p>
+<h3>貼圖 Pipeline</h3>
+
+<p><strong>Albedo（反照率）</strong>儲存表面的基礎漫反射顏色 $c_{\\text{diff}}$，不含任何光照或陰影烘焙。對非導體而言，它同時決定鏡面基礎反射率 $F_0 \\approx 0.04$；對金屬而言 $F_0 = c_{\\text{diff}}$。</p>
+
+<p><strong>Normal Map（法線貼圖）</strong>以 RGB 三通道編碼切線空間法線，$(0.5, 0.5, 1.0)$ 代表平坦表面。渲染時用貼圖法線取代插值幾何法線 $\\mathbf{n}$，在不增加多邊形的情況下模擬表面細節。</p>
+
+<p><strong>Roughness（粗糙度）</strong>控制微表面的不規則程度，透過 $\\alpha = roughness^2$ 映射到 GGX 寬度參數。值為 0 時反射如鏡；值為 1 時完全漫反射。</p>
+
+<p><strong>Metalness（金屬度）</strong>近似二元遮罩（0 = 非導體，1 = 導體），用來混合 $F_0$ 值並壓制金屬的漫反射項：</p>
+<p>$$F_0 = \\text{mix}(0.04,\\; c_{\\text{diff}},\\; metalness)$$</p>
+
+<p><strong>Ambient Occlusion（環境遮蔽）</strong>是預先烘焙的灰階貼圖，近似各點能接收到多少間接環境光。它乘以間接光照貢獻——0 表示完全遮蔽，1 表示完全暴露。</p>
+
+<p><strong>Displacement（位移）</strong>將每個頂點沿法線方向偏移，偏移量由高度值 $h \\in [0,1]$ 乘以使用者控制的縮放係數 $s$ 決定：</p>
+<p>$$\\mathbf{p}' = \\mathbf{p} + \\mathbf{n} \\cdot h \\cdot s$$</p>
+<p>此效果產生真實的幾何凹凸，可見於輪廓與自陰影，但需要高密度網格（本場景使用 128 × 128 個細分段）。</p>
+
+<h3>Cook-Torrance BRDF</h3>
+
+<p>完整反射率方程結合 Lambertian 漫反射項與鏡面微表面模型：</p>
 <p>$$f_r = \\frac{c_{\\text{diff}}}{\\pi} + \\frac{D(\\mathbf{h})\\,G(\\mathbf{l},\\mathbf{v})\\,F(\\mathbf{v},\\mathbf{h})}{4\\,(\\mathbf{n}\\cdot\\mathbf{l})(\\mathbf{n}\\cdot\\mathbf{v})}$$</p>
-<p><strong>GGX 法線分布函數</strong>根據粗糙度 $\\alpha$ 控制高光的集中程度：</p>
+<p><strong>GGX 法線分布函數</strong> $D$ 描述粗糙度 $\\alpha$ 下微表面朝向的統計分布：</p>
 <p>$$D_{\\text{GGX}}(\\mathbf{h}) = \\frac{\\alpha^2}{\\pi\\bigl((\\mathbf{n}\\cdot\\mathbf{h})^2(\\alpha^2-1)+1\\bigr)^2}$$</p>
-<p><strong>Smith 幾何函數</strong>模擬微表面的自遮蔽效應：</p>
+<p><strong>Smith 幾何函數</strong> $G$ 處理微表面的自遮蔽與遮掩效應：</p>
 <p>$$G_{\\text{Smith}}(\\mathbf{l},\\mathbf{v}) = G_{\\text{sub}}(\\mathbf{n}\\cdot\\mathbf{l},\\,\\alpha)\\cdot G_{\\text{sub}}(\\mathbf{n}\\cdot\\mathbf{v},\\,\\alpha)$$</p>
-<p><strong>Fresnel-Schlick 近似</strong>計算基礎反射率及掠射角的亮度增強：</p>
+<p><strong>Fresnel-Schlick 近似</strong> $F$ 決定反射率，在掠射角時達到峰值：</p>
 <p>$$F_{\\text{Schlick}}(\\mathbf{v},\\mathbf{h}) = F_0 + (1-F_0)(1-\\mathbf{v}\\cdot\\mathbf{h})^5$$</p>
-<p>鏡面項的核心 GLSL 實作：</p>
+<p>核心 GLSL 實作：</p>
 <pre><code class="language-glsl">float D_GGX(float NdotH, float alpha2) {
     float denom = NdotH * NdotH * (alpha2 - 1.0) + 1.0;
     return alpha2 / (PI * denom * denom);

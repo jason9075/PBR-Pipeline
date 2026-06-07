@@ -112,5 +112,7 @@ body{display:grid;grid-template-rows:48px 1fr;height:100vh}
 .modal-toggle:hover{background:var(--n3)}
 .modal-body{display:grid;gap:.85rem;line-height:1.75;color:var(--n5);font-size:.83rem}
 .modal-body p{margin:0}
+.modal-body h3{font-size:.8rem;color:var(--n8);text-transform:uppercase;letter-spacing:.07em;
+  margin-top:.25rem;padding-bottom:.2rem;border-bottom:1px solid var(--n3)}
 .modal-body pre[class*=language-]{border-radius:8px;overflow-x:auto;font-size:.78rem;margin:0}
 .katex-display{overflow-x:auto;padding:.4rem 0}
