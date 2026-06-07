@@ -34,31 +34,34 @@ const mathContent  = document.getElementById('math-content');
 const B = import.meta.env.BASE_URL;
 const TEX = {
   brick: {
-    albedo:    `${B}assets/brick/Bricks104_1K-PNG_Color.png`,
-    normal:    `${B}assets/brick/Bricks104_1K-PNG_NormalGL.png`,
-    roughness: `${B}assets/brick/Bricks104_1K-PNG_Roughness.png`,
-    ao:        `${B}assets/brick/Bricks104_1K-PNG_AmbientOcclusion.png`,
-    metalness: null,
+    albedo:       `${B}assets/brick/Bricks104_1K-PNG_Color.png`,
+    normal:       `${B}assets/brick/Bricks104_1K-PNG_NormalGL.png`,
+    roughness:    `${B}assets/brick/Bricks104_1K-PNG_Roughness.png`,
+    ao:           `${B}assets/brick/Bricks104_1K-PNG_AmbientOcclusion.png`,
+    metalness:    null,
+    displacement: `${B}assets/brick/Bricks104_1K-PNG_Displacement.png`,
   },
   metal: {
-    albedo:    `${B}assets/metal/Metal055A_1K-PNG_Color.png`,
-    normal:    `${B}assets/metal/Metal055A_1K-PNG_NormalGL.png`,
-    roughness: `${B}assets/metal/Metal055A_1K-PNG_Roughness.png`,
-    ao:        null,
-    metalness: `${B}assets/metal/Metal055A_1K-PNG_Metalness.png`,
+    albedo:       `${B}assets/metal/Metal055A_1K-PNG_Color.png`,
+    normal:       `${B}assets/metal/Metal055A_1K-PNG_NormalGL.png`,
+    roughness:    `${B}assets/metal/Metal055A_1K-PNG_Roughness.png`,
+    ao:           null,
+    metalness:    `${B}assets/metal/Metal055A_1K-PNG_Metalness.png`,
+    displacement: `${B}assets/metal/Metal055A_1K-PNG_Displacement.png`,
   },
   rock: {
-    albedo:    `${B}assets/rock/Rock064_1K-PNG_Color.png`,
-    normal:    `${B}assets/rock/Rock064_1K-PNG_NormalGL.png`,
-    roughness: `${B}assets/rock/Rock064_1K-PNG_Roughness.png`,
-    ao:        `${B}assets/rock/Rock064_1K-PNG_AmbientOcclusion.png`,
-    metalness: null,
+    albedo:       `${B}assets/rock/Rock064_1K-PNG_Color.png`,
+    normal:       `${B}assets/rock/Rock064_1K-PNG_NormalGL.png`,
+    roughness:    `${B}assets/rock/Rock064_1K-PNG_Roughness.png`,
+    ao:           `${B}assets/rock/Rock064_1K-PNG_AmbientOcclusion.png`,
+    metalness:    null,
+    displacement: `${B}assets/rock/Rock064_1K-PNG_Displacement.png`,
   },
 };
 
 const MAT_NAMES   = ['brick', 'metal', 'rock'];
 const MAT_LABELS  = { brick: 'Brick Wall', metal: 'Metal Plate', rock: 'Rock Surface' };
-const CHANNELS    = ['albedo', 'normal', 'roughness', 'metalness', 'ao'];
+const CHANNELS    = ['albedo', 'normal', 'roughness', 'metalness', 'ao', 'displacement'];
 
 /* ─── App state ───────────────────────────────────────────────────────── */
 const state = {
@@ -67,9 +70,9 @@ const state = {
   environment:     'studio',
   isolatedChannel: null,
   channels: {
-    brick: { albedo:true, normal:true, roughness:true, metalness:false, ao:true },
-    metal: { albedo:true, normal:true, roughness:true, metalness:true,  ao:false },
-    rock:  { albedo:true, normal:true, roughness:true, metalness:false, ao:true },
+    brick: { albedo:true, normal:true, roughness:true, metalness:false, ao:true, displacement:true },
+    metal: { albedo:true, normal:true, roughness:true, metalness:true,  ao:false, displacement:true },
+    rock:  { albedo:true, normal:true, roughness:true, metalness:false, ao:true, displacement:true },
   },
 };
 
@@ -182,6 +185,13 @@ function buildMat(matName) {
     mat.aoMapIntensity = 1.0;
   }
 
+  if (ch.displacement && defs.displacement) {
+    mat.displacementMap   = getTex(defs.displacement);
+    mat.displacementScale = 0.08;
+  } else {
+    mat.displacementScale = 0;
+  }
+
   return mat;
 }
 
@@ -197,6 +207,68 @@ function buildSolidMat(matName) {
   });
   if (ch.albedo && defs.albedo) mat.map = getTex(defs.albedo, true);
   return mat;
+}
+
+// Build a wireframe BufferGeometry that preserves UV from the source geometry.
+// WireframeGeometry strips UVs, so we reconstruct edges manually to keep them.
+function buildWireframeWithUV(srcGeo) {
+  const pos   = srcGeo.attributes.position;
+  const uv    = srcGeo.attributes.uv;
+  const nrm   = srcGeo.attributes.normal;
+  const index = srcGeo.index;
+
+  const outPos = [], outUV = [], outNrm = [];
+
+  for (let i = 0; i < index.count; i += 3) {
+    const tri = [index.getX(i), index.getX(i + 1), index.getX(i + 2)];
+    for (let e = 0; e < 3; e++) {
+      const a = tri[e], b = tri[(e + 1) % 3];
+      outPos.push(pos.getX(a), pos.getY(a), pos.getZ(a));
+      outUV.push(  uv.getX(a),  uv.getY(a));
+      outNrm.push(nrm.getX(a), nrm.getY(a), nrm.getZ(a));
+      outPos.push(pos.getX(b), pos.getY(b), pos.getZ(b));
+      outUV.push(  uv.getX(b),  uv.getY(b));
+      outNrm.push(nrm.getX(b), nrm.getY(b), nrm.getZ(b));
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(outPos, 3));
+  geo.setAttribute('uv',       new THREE.Float32BufferAttribute(outUV,  2));
+  geo.setAttribute('normal',   new THREE.Float32BufferAttribute(outNrm, 3));
+  return geo;
+}
+
+// ShaderMaterial that applies the same displacement as MeshStandardMaterial,
+// so the wireframe accurately traces the deformed surface.
+function buildWireframeMat() {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      dispMap:   { value: null },
+      dispScale: { value: 0.0 },
+      color:     { value: new THREE.Color(0x88C0D0) },
+      opacity:   { value: 0.08 },
+    },
+    vertexShader: /* glsl */`
+      uniform sampler2D dispMap;
+      uniform float     dispScale;
+      void main() {
+        vec3 p = position;
+        if (dispScale > 0.0) {
+          p += normal * texture2D(dispMap, uv).r * dispScale;
+        }
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */`
+      uniform vec3  color;
+      uniform float opacity;
+      void main() { gl_FragColor = vec4(color, opacity); }
+    `,
+    transparent: true,
+    depthTest:   false,
+    depthWrite:  false,
+  });
 }
 
 function isolateMat(matName, channel) {
@@ -224,7 +296,8 @@ const POSITIONS = [[-2.8, 0, 0], [0, 0, 0], [2.8, 0, 0]];
 const ROTATIONS  = [0.22, 0, -0.22];
 
 MAT_NAMES.forEach((name, i) => {
-  const geo = new THREE.PlaneGeometry(PLANE_W, PLANE_H);
+  // 128×128 segments needed for displacementMap to look smooth
+  const geo = new THREE.PlaneGeometry(PLANE_W, PLANE_H, 128, 128);
   geo.setAttribute('uv2', geo.attributes.uv.clone());
 
   materials[name] = buildMat(name);
@@ -243,16 +316,22 @@ MAT_NAMES.forEach((name, i) => {
   back.rotation.copy(mesh.rotation);
   scene.add(back);
 
-  const wfGeo = new THREE.WireframeGeometry(geo);
-  const wfMat = new THREE.LineBasicMaterial({
+  // Two wireframe LODs:
+  //   geoLo + LineBasicMaterial : 1×1 quad, displacement OFF, clean outline
+  //   geoHi + ShaderMaterial    : 128×128 with UV, samples dispMap in vertex shader
+  const wfGeoLo = new THREE.WireframeGeometry(new THREE.PlaneGeometry(PLANE_W, PLANE_H));
+  const wfGeoHi = buildWireframeWithUV(geo);
+  const wfMatLo = new THREE.LineBasicMaterial({
     color: 0x88C0D0, transparent: true, opacity: 0.75,
     depthTest: false, depthWrite: false,
   });
-  const wf = new THREE.LineSegments(wfGeo, wfMat);
+  const wfMatHi = buildWireframeMat();
+  const wf = new THREE.LineSegments(wfGeoLo, wfMatLo);
   wf.renderOrder = 1;
   wf.position.copy(mesh.position);
   wf.rotation.copy(mesh.rotation);
   wf.visible = false;
+  wf.userData = { geoLo: wfGeoLo, geoHi: wfGeoHi, matLo: wfMatLo, matHi: wfMatHi };
   scene.add(wf);
   wfMeshes[name] = wf;
 });
@@ -266,6 +345,29 @@ scene.add(dirLight);
 
 const ambLight = new THREE.AmbientLight(0x8896a8, 0.4);
 scene.add(ambLight);
+
+/* ─── Light indicator ─────────────────────────────────────────────────── */
+const lightBulb = new THREE.Mesh(
+  new THREE.SphereGeometry(0.12, 12, 12),
+  new THREE.MeshBasicMaterial({ color: 0xFFEE88 }),
+);
+scene.add(lightBulb);
+
+const lightLineGeo = new THREE.BufferGeometry().setFromPoints([
+  new THREE.Vector3(), dirLight.position.clone(),
+]);
+const lightLine = new THREE.Line(
+  lightLineGeo,
+  new THREE.LineBasicMaterial({ color: 0xFFEE88, transparent: true, opacity: 0.25 }),
+);
+scene.add(lightLine);
+
+function syncLightIndicator() {
+  lightBulb.position.copy(dirLight.position);
+  const pos = lightLineGeo.attributes.position;
+  pos.setXYZ(1, dirLight.position.x, dirLight.position.y, dirLight.position.z);
+  pos.needsUpdate = true;
+}
 
 /* ─── OrbitControls ───────────────────────────────────────────────────── */
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -302,6 +404,22 @@ canvas.addEventListener('pointerup', e => {
 
 /* ─── Core update helpers ─────────────────────────────────────────────── */
 
+// Switch wireframe LOD and material based on displacement state
+function syncWireframeGeo(name) {
+  const wf   = wfMeshes[name];
+  const disp = state.channels[name].displacement && TEX[name].displacement;
+  if (disp) {
+    wf.geometry = wf.userData.geoHi;
+    wf.material = wf.userData.matHi;
+    // Bind current displacement texture and scale to the wireframe shader
+    wf.userData.matHi.uniforms.dispMap.value   = getTex(TEX[name].displacement);
+    wf.userData.matHi.uniforms.dispScale.value = 0.08;
+  } else {
+    wf.geometry = wf.userData.geoLo;
+    wf.material = wf.userData.matLo;
+  }
+}
+
 // Single source of truth: assign the correct material to a mesh given current state
 function syncMeshMaterial(name) {
   // Isolation overrides everything on the selected mesh
@@ -331,6 +449,7 @@ function rebuildMaterial(matName) {
   materials[matName].envMapIntensity =
     (state.shaderMode === 'render' && state.environment !== 'none') ? 1.0 : 0;
   syncMeshMaterial(matName);
+  syncWireframeGeo(matName);
   setHighlight(state.selectedMat);
 }
 
@@ -458,6 +577,7 @@ azimuthEl.addEventListener('input', () => {
   const rad = (parseFloat(azimuthEl.value) * Math.PI) / 180;
   dirLight.position.x = Math.cos(rad) * 6;
   dirLight.position.z = Math.sin(rad) * 6;
+  syncLightIndicator();
 });
 
 // Light intensity
@@ -572,3 +692,5 @@ mathModal.addEventListener('click',    e  => { if (e.target === mathModal) mathM
 applyEnv('studio');
 selectMaterial('brick');
 applyShaderMode('render');
+MAT_NAMES.forEach(syncWireframeGeo);
+syncLightIndicator();
