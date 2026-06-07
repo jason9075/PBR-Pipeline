@@ -18,6 +18,8 @@ const envBtns      = document.querySelectorAll('.env-btn');
 const matItems     = document.querySelectorAll('.mat-item');
 const azimuthEl    = document.getElementById('azimuth');
 const intensityEl  = document.getElementById('intensity');
+const dispScaleEl  = document.getElementById('disp-scale');
+const dispScaleVal = document.getElementById('disp-scale-val');
 const channelRows  = document.querySelectorAll('.channel-row');
 const isolateBtns  = document.querySelectorAll('.isolate-btn');
 const statFpsEl    = document.getElementById('stat-fps');
@@ -67,6 +69,7 @@ const CHANNELS    = ['albedo', 'normal', 'roughness', 'metalness', 'ao', 'displa
 const state = {
   selectedMat:     'brick',
   shaderMode:      'render',
+  dispScale:       0.08,
   environment:     'studio',
   isolatedChannel: null,
   channels: {
@@ -132,7 +135,7 @@ function applyEnv(name) {
   }
   MAT_NAMES.forEach(n => {
     materials[n].envMapIntensity =
-      (name !== 'none' && state.shaderMode === 'render') ? 1.0 : 0;
+      (name !== 'none' && state.shaderMode !== 'wireframe') ? 1.0 : 0;
   });
 }
 
@@ -187,7 +190,7 @@ function buildMat(matName) {
 
   if (ch.displacement && defs.displacement) {
     mat.displacementMap   = getTex(defs.displacement);
-    mat.displacementScale = 0.08;
+    mat.displacementScale = state.dispScale;
   } else {
     mat.displacementScale = 0;
   }
@@ -413,7 +416,7 @@ function syncWireframeGeo(name) {
     wf.material = wf.userData.matHi;
     // Bind current displacement texture and scale to the wireframe shader
     wf.userData.matHi.uniforms.dispMap.value   = getTex(TEX[name].displacement);
-    wf.userData.matHi.uniforms.dispScale.value = 0.08;
+    wf.userData.matHi.uniforms.dispScale.value = state.dispScale;
   } else {
     wf.geometry = wf.userData.geoLo;
     wf.material = wf.userData.matLo;
@@ -426,9 +429,8 @@ function syncMeshMaterial(name) {
   if (state.isolatedChannel !== null && name === state.selectedMat) return;
   if (state.shaderMode === 'wireframe') {
     meshes[name].material = WIRE_FILL;
-  } else if (state.shaderMode === 'solid') {
-    meshes[name].material = solidMats[name];
   } else {
+    // render + mix both use the full PBR material
     meshes[name].material = materials[name];
   }
 }
@@ -447,7 +449,7 @@ function rebuildMaterial(matName) {
   materials[matName] = buildMat(matName);
   solidMats[matName] = buildSolidMat(matName);
   materials[matName].envMapIntensity =
-    (state.shaderMode === 'render' && state.environment !== 'none') ? 1.0 : 0;
+    (state.shaderMode !== 'wireframe' && state.environment !== 'none') ? 1.0 : 0;
   syncMeshMaterial(matName);
   syncWireframeGeo(matName);
   setHighlight(state.selectedMat);
@@ -455,9 +457,10 @@ function rebuildMaterial(matName) {
 
 function applyShaderMode(mode) {
   MAT_NAMES.forEach(name => {
-    wfMeshes[name].visible = mode === 'wireframe';
+    // wireframe lines visible in both wireframe-only and mix modes
+    wfMeshes[name].visible = mode === 'wireframe' || mode === 'mix';
     materials[name].envMapIntensity =
-      (mode === 'render' && state.environment !== 'none') ? 1.0 : 0;
+      (mode !== 'wireframe' && state.environment !== 'none') ? 1.0 : 0;
     syncMeshMaterial(name);
   });
 }
@@ -583,6 +586,18 @@ azimuthEl.addEventListener('input', () => {
 // Light intensity
 intensityEl.addEventListener('input', () => {
   dirLight.intensity = parseFloat(intensityEl.value);
+});
+
+// Displacement scale — update all materials and wireframe shaders live
+dispScaleEl.addEventListener('input', () => {
+  state.dispScale = parseFloat(dispScaleEl.value);
+  dispScaleVal.textContent = state.dispScale.toFixed(2);
+  MAT_NAMES.forEach(name => {
+    const m = materials[name];
+    if (m.displacementMap) m.displacementScale = state.dispScale;
+    const hi = wfMeshes[name].userData.matHi;
+    if (hi) hi.uniforms.dispScale.value = state.dispScale;
+  });
 });
 
 /* ─── Resize ──────────────────────────────────────────────────────────── */

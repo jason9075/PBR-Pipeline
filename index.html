@@ -14,8 +14,8 @@
     <div id="header-right">
       <div id="shader-modes" role="group" aria-label="Shader mode">
         <button class="mode-btn" data-mode="wireframe" type="button">Wireframe</button>
-        <button class="mode-btn" data-mode="solid" type="button">Solid</button>
         <button class="mode-btn active" data-mode="render" type="button">Render</button>
+        <button class="mode-btn" data-mode="mix" type="button">Mix</button>
       </div>
       <button id="open-math" class="icon-button" type="button"
         aria-haspopup="dialog" aria-controls="math-modal" aria-label="Explain the math">💡</button>
@@ -46,6 +46,14 @@
           <button class="env-btn" data-env="none" type="button">None</button>
           <button class="env-btn active" data-env="studio" type="button">Studio</button>
           <button class="env-btn" data-env="outdoor" type="button">Outdoor</button>
+        </div>
+        <label class="ctrl-label" for="disp-scale">
+          Displacement Scale <span id="disp-scale-val">0.08</span>
+        </label>
+        <div class="slider-row">
+          <span>○</span>
+          <input type="range" id="disp-scale" min="0" max="0.3" step="0.01" value="0.08" />
+          <span>●</span>
         </div>
       </section>
 
