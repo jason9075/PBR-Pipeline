@@ -45,14 +45,6 @@ const TEX = {
     metalness:    null,
     displacement: `${B}assets/brick/Bricks104_1K-PNG_Displacement.png`,
   },
-  metal: {
-    albedo:       `${B}assets/metal/Metal055A_1K-PNG_Color.png`,
-    normal:       `${B}assets/metal/Metal055A_1K-PNG_NormalGL.png`,
-    roughness:    `${B}assets/metal/Metal055A_1K-PNG_Roughness.png`,
-    ao:           null,
-    metalness:    `${B}assets/metal/Metal055A_1K-PNG_Metalness.png`,
-    displacement: `${B}assets/metal/Metal055A_1K-PNG_Displacement.png`,
-  },
   rock: {
     albedo:       `${B}assets/rock/Rock064_1K-PNG_Color.png`,
     normal:       `${B}assets/rock/Rock064_1K-PNG_NormalGL.png`,
@@ -60,6 +52,14 @@ const TEX = {
     ao:           `${B}assets/rock/Rock064_1K-PNG_AmbientOcclusion.png`,
     metalness:    null,
     displacement: `${B}assets/rock/Rock064_1K-PNG_Displacement.png`,
+  },
+  metal: {
+    albedo:       `${B}assets/metal/Metal055A_1K-PNG_Color.png`,
+    normal:       `${B}assets/metal/Metal055A_1K-PNG_NormalGL.png`,
+    roughness:    `${B}assets/metal/Metal055A_1K-PNG_Roughness.png`,
+    ao:           null,
+    metalness:    `${B}assets/metal/Metal055A_1K-PNG_Metalness.png`,
+    displacement: `${B}assets/metal/Metal055A_1K-PNG_Displacement.png`,
   },
   rusty_metal: {
     albedo:       `${B}assets/rusty_metal/Metal055C_1K-PNG_Color.png`,
@@ -71,7 +71,7 @@ const TEX = {
   },
 };
 
-const MAT_NAMES = ['brick', 'metal', 'rock', 'rusty_metal'];
+const MAT_NAMES = ['brick', 'rock', 'metal', 'rusty_metal'];
 
 /* ─── App state ───────────────────────────────────────────────────────── */
 const state = {
@@ -82,8 +82,8 @@ const state = {
   isolatedChannel: null,
   channels: {
     brick:       { albedo:true, normal:true, roughness:true, metalness:false, ao:true,  displacement:true },
-    metal:       { albedo:true, normal:true, roughness:true, metalness:true,  ao:false, displacement:true },
     rock:        { albedo:true, normal:true, roughness:true, metalness:false, ao:true,  displacement:true },
+    metal:       { albedo:true, normal:true, roughness:true, metalness:true,  ao:false, displacement:true },
     rusty_metal: { albedo:true, normal:true, roughness:true, metalness:true,  ao:false, displacement:true },
   },
 };
